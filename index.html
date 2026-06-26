@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Avaliações Booking | Apê Smart Studios Mackenzie</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+  --ape-blue: #003955;
+  --ape-blue-mid: #005580;
+  --ape-blue-light: #1a7aa8;
+  --ape-gold: #C09100;
+  --ape-gold-light: #f0be00;
+  --ape-white: #FFFFFF;
+  --ape-light-bg: #F5F6F7;
+  --ape-gray: #6B6B6B;
+  --ape-border: #E5E7EB;
+  --ape-font: Helvetica, Arial, sans-serif;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(0,57,85,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ape-font);background:var(--ape-light-bg);color:var(--ape-blue);min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+/* HEADER */
+.header{background:var(--ape-blue);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:72px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.18)}
+.header-left{display:flex;align-items:center;gap:20px}
+.logo-wrap{display:flex;align-items:center;gap:0;border-right:1px solid rgba(255,255,255,0.15);padding-right:20px}
+.logo-svg{height:40px;width:auto}
+.header-titles{display:flex;flex-direction:column;gap:2px}
+.header-title{color:#fff;font-size:15px;font-weight:700;letter-spacing:0.3px}
+.header-sub{color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:0.5px}
+.header-right{display:flex;align-items:center;gap:12px}
+.upload-btn{background:var(--ape-gold);color:#fff;border:none;padding:8px 18px;border-radius:6px;font-family:var(--ape-font);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:opacity .2s}
+.upload-btn:hover{opacity:.85}
+#file-input{display:none}
+
+/* NAV */
+.nav{background:var(--ape-blue);border-top:1px solid rgba(255,255,255,0.08);padding:0 32px;display:flex;gap:4px;overflow-x:auto}
+.nav-btn{color:rgba(255,255,255,0.6);background:none;border:none;font-family:var(--ape-font);font-size:12px;font-weight:600;padding:10px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;letter-spacing:0.4px}
+.nav-btn:hover{color:#fff}
+.nav-btn.active{color:#fff;border-bottom-color:var(--ape-gold)}
+
+/* LAYOUT */
+.main{padding:28px 32px;max-width:1400px;margin:0 auto}
+.section{display:none}
+.section.active{display:block}
+
+/* UPLOAD SCREEN */
+.upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:24px;text-align:center}
+.upload-zone{border:2px dashed var(--ape-border);border-radius:16px;padding:56px 48px;background:#fff;cursor:pointer;transition:all .25s;max-width:480px;width:100%}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--ape-blue);background:#f0f7fb}
+.upload-icon{font-size:48px;margin-bottom:16px;opacity:.4}
+.upload-zone h3{color:var(--ape-blue);font-size:18px;margin-bottom:8px}
+.upload-zone p{color:var(--ape-gray);font-size:13px;line-height:1.6}
+.upload-zone .btn-primary{margin-top:20px;display:inline-block;background:var(--ape-blue);color:#fff;padding:10px 28px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:var(--ape-font)}
+
+/* CARDS */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
+.kpi-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border-left:4px solid var(--ape-blue)}
+.kpi-card.gold{border-left-color:var(--ape-gold)}
+.kpi-card.red{border-left-color:#d93025}
+.kpi-card.green{border-left-color:#1a7a4a}
+.kpi-label{font-size:11px;color:var(--ape-gray);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px}
+.kpi-value{font-size:28px;font-weight:800;color:var(--ape-blue);line-height:1}
+.kpi-sub{font-size:11px;color:var(--ape-gray);margin-top:4px}
+.kpi-delta{font-size:12px;font-weight:700;margin-top:4px}
+.kpi-delta.up{color:#1a7a4a}.kpi-delta.down{color:#d93025}.kpi-delta.neutral{color:var(--ape-gray)}
+
+/* SECTION HEADER */
+.section-header{margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid var(--ape-border)}
+.section-header h2{font-size:22px;font-weight:800;color:var(--ape-blue)}
+.section-header p{color:var(--ape-gray);font-size:13px;margin-top:4px}
+
+/* CHART CARDS */
+.charts-grid{display:grid;gap:20px;margin-bottom:28px}
+.charts-grid.cols-2{grid-template-columns:1fr 1fr}
+.charts-grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+.charts-grid.cols-1{grid-template-columns:1fr}
+.chart-card{background:#fff;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+.chart-title{font-size:13px;font-weight:700;color:var(--ape-blue);margin-bottom:16px;letter-spacing:0.3px}
+.chart-wrap{position:relative}
+.chart-wrap canvas{max-height:260px}
+
+/* INSIGHT BOX */
+.insight-box{background:var(--ape-blue);color:#fff;border-radius:var(--radius);padding:24px 28px;margin-bottom:24px}
+.insight-box h3{font-size:14px;font-weight:700;color:var(--ape-gold);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px}
+.insight-box p{font-size:13px;line-height:1.8;color:rgba(255,255,255,0.9)}
+.insight-box ul{margin:8px 0 0 16px}
+.insight-box li{font-size:13px;line-height:1.8;color:rgba(255,255,255,0.85)}
+
+/* ALERT CARD */
+.alert-card{border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;border-left:5px solid}
+.alert-card.critical{background:#fff5f5;border-color:#d93025}
+.alert-card.high{background:#fff8e1;border-color:var(--ape-gold)}
+.alert-card.medium{background:#e8f4fd;border-color:var(--ape-blue-light)}
+.alert-card.low{background:#f0f9f4;border-color:#1a7a4a}
+.alert-card h4{font-size:13px;font-weight:700;margin-bottom:6px}
+.alert-card p{font-size:12px;color:var(--ape-gray);line-height:1.6}
+.risk-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px}
+.risk-badge.critical{background:#d93025;color:#fff}
+.risk-badge.high{background:var(--ape-gold);color:#fff}
+.risk-badge.medium{background:var(--ape-blue-light);color:#fff}
+.risk-badge.low{background:#1a7a4a;color:#fff}
+
+/* FILTERS */
+.filters-bar{background:#fff;border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;box-shadow:var(--shadow);display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.filter-group{display:flex;flex-direction:column;gap:4px}
+.filter-group label{font-size:10px;font-weight:700;color:var(--ape-gray);letter-spacing:0.5px;text-transform:uppercase}
+.filter-group select,.filter-group input[type=date]{font-family:var(--ape-font);font-size:12px;border:1px solid var(--ape-border);border-radius:6px;padding:6px 10px;color:var(--ape-blue);background:#fff;cursor:pointer}
+.filter-apply{background:var(--ape-blue);color:#fff;border:none;border-radius:6px;padding:8px 18px;font-family:var(--ape-font);font-size:12px;font-weight:700;cursor:pointer;margin-top:16px}
+.filter-apply:hover{background:var(--ape-blue-mid)}
+.filter-reset{background:none;border:1px solid var(--ape-border);border-radius:6px;padding:8px 14px;font-family:var(--ape-font);font-size:12px;cursor:pointer;color:var(--ape-gray);margin-top:16px}
+
+/* TABLE */
+.table-wrap{background:#fff;border-radius:var(--radius);padding:0;box-shadow:var(--shadow);overflow:hidden}
+.reviews-table{width:100%;border-collapse:collapse;font-size:12px}
+.reviews-table th{background:var(--ape-blue);color:#fff;padding:12px 14px;text-align:left;font-weight:700;font-size:11px;letter-spacing:0.5px;white-space:nowrap}
+.reviews-table td{padding:11px 14px;border-bottom:1px solid var(--ape-border);vertical-align:top;line-height:1.5}
+.reviews-table tr:hover td{background:#f7fafc}
+.score-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.score-high{background:#e6f4ea;color:#1a7a4a}
+.score-mid{background:#fff8e1;color:#b07000}
+.score-low{background:#fce8e6;color:#d93025}
+.sentiment-tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700}
+.sentiment-pos{background:#e6f4ea;color:#1a7a4a}
+.sentiment-neu{background:#e8f0f7;color:var(--ape-blue)}
+.sentiment-neg{background:#fce8e6;color:#d93025}
+.tag-yes{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d93025;margin-right:4px}
+.tag-no{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ape-border)}
+.text-truncate{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help}
+.table-controls{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--ape-border)}
+.table-info{font-size:12px;color:var(--ape-gray)}
+.export-btn{background:var(--ape-gold);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-family:var(--ape-font);font-size:12px;font-weight:700;cursor:pointer}
+.pagination{display:flex;gap:6px;align-items:center;padding:14px 20px;border-top:1px solid var(--ape-border)}
+.page-btn{background:none;border:1px solid var(--ape-border);border-radius:5px;padding:5px 10px;font-family:var(--ape-font);font-size:12px;cursor:pointer;color:var(--ape-blue)}
+.page-btn.active{background:var(--ape-blue);color:#fff;border-color:var(--ape-blue)}
+.page-btn:hover:not(.active){background:var(--ape-light-bg)}
+
+/* RECOMMENDATION CARDS */
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
+.rec-card{background:#fff;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+.rec-card h3{font-size:14px;font-weight:800;color:var(--ape-blue);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.rec-icon{width:32px;height:32px;border-radius:8px;background:var(--ape-blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rec-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2}
+.rec-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rec-list li{display:flex;gap:10px;font-size:13px;color:var(--ape-gray);line-height:1.5;align-items:flex-start}
+.rec-list li::before{content:"→";color:var(--ape-gold);font-weight:700;flex-shrink:0;margin-top:1px}
+.response-box{background:var(--ape-light-bg);border-radius:8px;padding:16px;font-size:13px;color:var(--ape-blue);line-height:1.7;border-left:3px solid var(--ape-gold)}
+.response-box strong{color:var(--ape-blue);font-weight:700;display:block;margin-bottom:6px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase}
+
+/* EXECUTIVE SUMMARY */
+.exec-grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:28px}
+.exec-text{background:#fff;border-radius:var(--radius);padding:28px;box-shadow:var(--shadow)}
+.exec-text h3{font-size:16px;font-weight:800;color:var(--ape-blue);margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--ape-border)}
+.exec-text p{font-size:14px;color:var(--ape-gray);line-height:1.9;margin-bottom:12px}
+.exec-text strong{color:var(--ape-blue)}
+.exec-side{display:flex;flex-direction:column;gap:16px}
+.priority-card{background:var(--ape-blue);border-radius:var(--radius);padding:24px;color:#fff}
+.priority-card .label{font-size:10px;font-weight:700;color:var(--ape-gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.priority-card h4{font-size:16px;font-weight:800;margin-bottom:8px}
+.priority-card p{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6}
+
+/* HEATMAP */
+.heatmap-wrap{overflow-x:auto}
+.heatmap-table{border-collapse:collapse;font-size:11px;width:100%}
+.heatmap-table th,.heatmap-table td{padding:7px 10px;text-align:center;white-space:nowrap}
+.heatmap-table th{background:var(--ape-light-bg);font-weight:700;color:var(--ape-blue);font-size:10px}
+.heatmap-table td{border-radius:4px;font-weight:700;font-size:12px}
+.hm-0{background:#f0f9ff;color:var(--ape-border)}
+.hm-1{background:#bfe0ee;color:var(--ape-blue)}
+.hm-2{background:#7fbddb;color:#fff}
+.hm-3{background:#3d9ac4;color:#fff}
+.hm-4{background:#005580;color:#fff}
+.hm-5{background:#003955;color:#fff}
+.hm-label{text-align:left!important;font-weight:700;color:var(--ape-blue);font-size:11px}
+
+/* COMPARISON TABLE */
+.compare-row{display:grid;grid-template-columns:auto 1fr 1fr;gap:0;margin-bottom:0}
+.compare-table{width:100%;border-collapse:collapse;font-size:13px}
+.compare-table th{background:var(--ape-light-bg);padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--ape-gray);letter-spacing:0.5px}
+.compare-table td{padding:12px 16px;border-bottom:1px solid var(--ape-border)}
+.compare-table tr:last-child td{border-bottom:none}
+
+/* WORD CLOUD */
+.word-cloud{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0}
+.word-tag{display:inline-block;border-radius:20px;font-weight:700;padding:5px 12px;cursor:default}
+.word-tag.pos{background:#e6f4ea;color:#1a7a4a}
+.word-tag.neg{background:#fce8e6;color:#d93025}
+
+/* TREND INDICATORS */
+.trend-up::after{content:" ↑";color:#1a7a4a}
+.trend-down::after{content:" ↓";color:#d93025}
+.trend-stable::after{content:" →";color:var(--ape-gray)}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:var(--ape-gray)}
+.spinner{width:24px;height:24px;border:3px solid var(--ape-border);border-top-color:var(--ape-blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .charts-grid.cols-2,.charts-grid.cols-3,.rec-grid,.exec-grid{grid-template-columns:1fr}
+  .main{padding:16px}
+  .header{padding:0 16px}
+  .nav{padding:0 16px}
+}
+
+/* MISC */
+.separator{height:1px;background:var(--ape-border);margin:24px 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.3px}
+.badge-blue{background:#e0eef5;color:var(--ape-blue)}
+.badge-gold{background:#fff8df;color:#8a6500}
+.no-data{text-align:center;padding:48px;color:var(--ape-gray);font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo-wrap">
+      <!-- Logo Apê Smart Studios (branco, para fundo azul) -->
+      <svg class="logo-svg" viewBox="0 0 220 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="4" y="32" font-family="Georgia, serif" font-size="34" font-style="italic" font-weight="400" fill="white" letter-spacing="-1">Apê</text>
+        <text x="80" y="50" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="white" letter-spacing="3">SMART STUDIOS</text>
+        <line x1="78" y1="8" x2="78" y2="50" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="header-titles">
+      <div class="header-title">Dashboard de Avaliações Booking</div>
+      <div class="header-sub">Análise de reputação, barulho e limpeza · Apê Smart Studios Mackenzie</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="upload-btn" onclick="document.getElementById('file-input').click()">⊕ Carregar CSV</button>
+    <input type="file" id="file-input" accept=".csv" onchange="handleFileUpload(event)">
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showSection('resumo',this)">Resumo Executivo</button>
+  <button class="nav-btn" onclick="showSection('reputacao',this)">Reputação</button>
+  <button class="nav-btn" onclick="showSection('sentimento',this)">Sentimento</button>
+  <button class="nav-btn" onclick="showSection('barulho',this)">Barulho</button>
+  <button class="nav-btn" onclick="showSection('limpeza',this)">Limpeza</button>
+  <button class="nav-btn" onclick="showSection('comparativo',this)">Barulho vs Limpeza</button>
+  <button class="nav-btn" onclick="showSection('operacional',this)">Operacional</button>
+  <button class="nav-btn" onclick="showSection('tabela',this)">Avaliações</button>
+  <button class="nav-btn" onclick="showSection('recomendacoes',this)">Recomendações</button>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- UPLOAD SCREEN -->
+  <div id="upload-screen" class="upload-screen">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+      <div class="upload-icon">📊</div>
+      <h3>Carregar avaliações do Booking.com</h3>
+      <p>Arraste o arquivo CSV exportado do Booking.com ou clique para selecionar.<br><br>O arquivo deve conter as colunas: Data da avaliação, Nome do hóspede, Avaliação positiva, Avaliação negativa, Nota de avaliação, Limpeza, etc.</p>
+      <button class="btn-primary" onclick="event.stopPropagation();document.getElementById('file-input').click()">Selecionar arquivo CSV</button>
+    </div>
+    <p style="font-size:12px;color:var(--ape-gray)">Nenhum dado enviado para servidores — tudo processado localmente no seu navegador.</p>
+  </div>
+
+  <!-- SECTIONS -->
+  <div id="sections" style="display:none">
+
+    <!-- RESUMO EXECUTIVO -->
+    <section id="section-resumo" class="section active">
+      <div class="section-header">
+        <h2>Resumo Executivo</h2>
+        <p>Visão consolidada das avaliações e principais indicadores de reputação</p>
+      </div>
+      <div id="exec-content"></div>
+    </section>
+
+    <!-- REPUTAÇÃO -->
+    <section id="section-reputacao" class="section">
+      <div class="section-header">
+        <h2>Visão Geral da Reputação</h2>
+        <p>Evolução das notas, volume de avaliações e distribuição de scores</p>
+      </div>
+      <div id="rep-kpis" class="kpi-grid"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Nota Média ao Longo do Tempo</div><div class="chart-wrap"><canvas id="chart-score-time"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Volume de Avaliações por Mês</div><div class="chart-wrap"><canvas id="chart-vol-month"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Distribuição de Notas</div><div class="chart-wrap"><canvas id="chart-score-dist"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Avaliações por Subcategoria (média)</div><div class="chart-wrap"><canvas id="chart-subcats"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Palavras mais citadas — Positivo</div><div id="words-pos" class="word-cloud" style="padding:8px"></div></div>
+        <div class="chart-card"><div class="chart-title">Palavras mais citadas — Negativo</div><div id="words-neg" class="word-cloud" style="padding:8px"></div></div>
+      </div>
+    </section>
+
+    <!-- SENTIMENTO -->
+    <section id="section-sentimento" class="section">
+      <div class="section-header">
+        <h2>Análise de Sentimento</h2>
+        <p>Classificação das avaliações por sentimento e intensidade de reclamação</p>
+      </div>
+      <div id="sent-kpis" class="kpi-grid"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Sentimento por Mês</div><div class="chart-wrap"><canvas id="chart-sent-time"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Distribuição por Sentimento</div><div class="chart-wrap"><canvas id="chart-sent-dist"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Reclamações por Intensidade</div><div class="chart-wrap"><canvas id="chart-intensity"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Principais Temas Negativos</div><div class="chart-wrap"><canvas id="chart-neg-themes"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- BARULHO -->
+    <section id="section-barulho" class="section">
+      <div class="section-header">
+        <h2>Impacto do Barulho na Experiência do Hóspede</h2>
+        <p>Análise detalhada de todas as menções a ruído e seu impacto na nota</p>
+      </div>
+      <div id="noise-kpis" class="kpi-grid"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Menções de Barulho por Mês</div><div class="chart-wrap"><canvas id="chart-noise-month"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Origem Provável do Barulho</div><div class="chart-wrap"><canvas id="chart-noise-origin"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-1">
+        <div class="chart-card"><div class="chart-title">Impacto na Nota: Geral vs Com Barulho vs Crítico de Barulho</div><div class="chart-wrap"><canvas id="chart-noise-impact"></canvas></div></div>
+      </div>
+      <div id="noise-insight" class="insight-box"></div>
+      <div class="chart-card">
+        <div class="chart-title">Comentários mais representativos — Barulho</div>
+        <div id="noise-comments"></div>
+      </div>
+    </section>
+
+    <!-- LIMPEZA -->
+    <section id="section-limpeza" class="section">
+      <div class="section-header">
+        <h2>Impacto da Limpeza do Quarto na Experiência do Hóspede</h2>
+        <p>Análise detalhada de todas as menções a limpeza e seu impacto na nota</p>
+      </div>
+      <div id="clean-kpis" class="kpi-grid"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Menções de Limpeza por Mês</div><div class="chart-wrap"><canvas id="chart-clean-month"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Subtemas de Limpeza</div><div class="chart-wrap"><canvas id="chart-clean-subs"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-1">
+        <div class="chart-card"><div class="chart-title">Nota Média: Geral vs Limpeza Positiva vs Limpeza Negativa</div><div class="chart-wrap"><canvas id="chart-clean-impact"></canvas></div></div>
+      </div>
+      <div id="clean-insight" class="insight-box"></div>
+      <div class="chart-card">
+        <div class="chart-title">Comentários mais representativos — Limpeza</div>
+        <div id="clean-comments"></div>
+      </div>
+    </section>
+
+    <!-- BARULHO VS LIMPEZA -->
+    <section id="section-comparativo" class="section">
+      <div class="section-header">
+        <h2>Barulho vs Limpeza</h2>
+        <p>Comparativo entre os dois principais temas críticos da operação</p>
+      </div>
+      <div id="comp-kpis" class="kpi-grid"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Barulho vs Limpeza por Mês</div><div class="chart-wrap"><canvas id="chart-comp-month"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Nota Média — Geral / Barulho / Limpeza</div><div class="chart-wrap"><canvas id="chart-comp-scores"></canvas></div></div>
+      </div>
+      <div class="charts-grid cols-1">
+        <div class="chart-card">
+          <div class="chart-title">Heatmap de Recorrência por Mês</div>
+          <div class="heatmap-wrap"><div id="heatmap"></div></div>
+        </div>
+      </div>
+      <div id="comp-insight" class="insight-box"></div>
+    </section>
+
+    <!-- OPERACIONAL -->
+    <section id="section-operacional" class="section">
+      <div class="section-header">
+        <h2>Indicadores Operacionais</h2>
+        <p>KPIs de risco operacional e prioridades de ação</p>
+      </div>
+      <div id="op-kpis" class="kpi-grid"></div>
+      <div id="op-risk-cards"></div>
+      <div class="charts-grid cols-2">
+        <div class="chart-card"><div class="chart-title">Tendência Geral da Nota (últimos 6 meses)</div><div class="chart-wrap"><canvas id="chart-trend"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Reclamações por Criticidade</div><div class="chart-wrap"><canvas id="chart-crit"></canvas></div></div>
+      </div>
+      <div id="priority-card-wrap"></div>
+    </section>
+
+    <!-- TABELA -->
+    <section id="section-tabela" class="section">
+      <div class="section-header">
+        <h2>Tabela de Avaliações</h2>
+        <p>Todas as avaliações com filtros e exportação</p>
+      </div>
+      <div class="filters-bar" id="table-filters">
+        <div class="filter-group"><label>Período — De</label><input type="date" id="f-date-from"></div>
+        <div class="filter-group"><label>Período — Até</label><input type="date" id="f-date-to"></div>
+        <div class="filter-group"><label>Nota mínima</label><select id="f-score"><option value="">Todas</option><option value="1">≥ 1</option><option value="4">≥ 4</option><option value="7">≥ 7</option><option value="9">≥ 9</option></select></div>
+        <div class="filter-group"><label>Nota máxima</label><select id="f-score-max"><option value="">Todas</option><option value="3">≤ 3</option><option value="6">≤ 6</option><option value="8">≤ 8</option><option value="10">≤ 10</option></select></div>
+        <div class="filter-group"><label>Sentimento</label><select id="f-sent"><option value="">Todos</option><option value="positive">Positivo</option><option value="neutral">Neutro</option><option value="negative">Negativo</option></select></div>
+        <div class="filter-group"><label>Barulho</label><select id="f-noise"><option value="">Todos</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+        <div class="filter-group"><label>Limpeza</label><select id="f-clean"><option value="">Todos</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+        <div class="filter-group"><label>Criticidade</label><select id="f-crit"><option value="">Todas</option><option value="critical">Crítica</option><option value="moderate">Moderada</option><option value="light">Leve</option></select></div>
+        <button class="filter-apply" onclick="applyTableFilter()">Filtrar</button>
+        <button class="filter-reset" onclick="resetTableFilter()">Limpar</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-controls">
+          <span class="table-info" id="table-info">—</span>
+          <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
+        </div>
+        <div style="overflow-x:auto"><table class="reviews-table"><thead id="table-head"></thead><tbody id="table-body"></tbody></table></div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </section>
+
+    <!-- RECOMENDAÇÕES -->
+    <section id="section-recomendacoes" class="section">
+      <div class="section-header">
+        <h2>Recomendações para Operação</h2>
+        <p>Ações práticas baseadas nos dados analisados</p>
+      </div>
+      <div id="rec-content"></div>
+    </section>
+
+  </div><!-- /sections -->
+</main>
+
+<script>
+// ============================================================
+// DATA & STATE
+// ============================================================
+let allReviews = [];
+let filteredReviews = [];
+let tableFiltered = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+const activeCharts = {};
+
+// ============================================================
+// KEYWORDS
+// ============================================================
+const noiseKeywords = {
+  rua:["rua barulhenta","bares na rua","carros","trânsito","tráfego","street noise","traffic","avenida","calle ruidosa","rua de baixo","barulho da rua","barulho externo","ruído externo","barulho do lado de fora","bares embaixo","música dos bares","bares ao redor","bar na frente","bares em frente"],
+  hospedes:["vizinhos","hóspedes","hóspede barulhento","hóspede barulhenta","vizinho","vizinha","quarto ao lado","quarto vizinho","neighbor","neighbours"],
+  corredor:["corredor","porta batendo","porta","elevador","escada","corredor barulhento","passos","door","hallway","elevator"],
+  obra:["obra","construção","manutenção","construction","reform"],
+  interno:["recepção","funcionário barulhento","operação interna","limpeza fazendo barulho","camareira barulho"],
+  acustico:["isolamento acústico","sem isolamento","sem insonorização","soundproof","acústica","vedação","janela sem","não isola","isolamento de som","sem anti ruído","anti ruido"],
+  geral:["barulho","ruído","ruidoso","som alto","muito alto","ensurdecedor","insuportável","impossível dormir","não consegui dormir","não conseguia dormir","noite terrível","noite horrível","não descansei","noise","noisy","loud","sound","disturbing","barulho demais","barulho intenso","barulho infernal","musical alta","música alta","música forte","festas","balada","bares"]
+};
+
+const cleaningKeywords = {
+  banheiro:["banheiro sujo","banheiro","bathroom","baño","vaso sanitário","chuveiro sujo","azulejo","ralo com cabelo","ralo"],
+  cama:["roupa de cama","lençol","lençóis","edredom sujo","edredom manchado","cama suja","colchão","travesseiro sujo","bed linen","bedding","sheets","pillow","sábana"],
+  toalhas:["toalha suja","toalha velha","toalhas","towel","toalla"],
+  piso:["piso sujo","chão sujo","floor","piso","chão","poeira","pó","dust"],
+  cheiro:["cheiro","odor","mau cheiro","fedor","smell","bad smell","olor","mal olor","cheiro de esgoto","esgoto","mofado","mofo"],
+  mofo:["mofo","mold","bolor","fungos","mofo no teto","mofo na parede","mofado"],
+  cabelo:["cabelo","cabelos","hair","pelo","pelos"],
+  lixo:["lixo","lixeira","trash","garbage","basura"],
+  manchas:["mancha","manchas","stain","stains","mancha de sangue","sangue","manchado"],
+  manutencao:["manutenção","quebrado","estrago","danificado","solto","rachado","registro solto"],
+  frequencia:["não limparam","não fez limpeza","não limpa","sem limpeza","falta limpeza","pecando na limpeza","limpeza deixou a desejar","limpeza ruim","limpeza péssima","limpeza fraca","limpeza faltou"],
+  positivo:["limpo","limpíssimo","limpeza impecável","muito limpo","tudo limpinho","limpeza ótima","limpeza excelente","limpeza perfeita","bem limpo","bem limpa","clean","muito limpa","tudo limpinho","branquinho","tudo limpinho"]
+};
+
+const noiseOriginOrder = ["rua","hospedes","corredor","obra","acustico","interno","geral"];
+const cleanSubOrder = ["banheiro","cama","toalhas","piso","cheiro","mofo","cabelo","lixo","manchas","manutencao","frequencia","positivo"];
+
+// ============================================================
+// CSV PARSING
+// ============================================================
+function handleFileUpload(event){
+  const file = event.target.files[0];
+  if(file) parseFile(file);
+}
+function handleDrop(event){
+  event.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if(file) parseFile(file);
+}
+function handleDragOver(event){event.preventDefault();document.getElementById('drop-zone').classList.add('drag-over')}
+function handleDragLeave(){document.getElementById('drop-zone').classList.remove('drag-over')}
+
+function parseFile(file){
+  showLoading();
+  Papa.parse(file, {
+    header:true,
+    skipEmptyLines:true,
+    complete: function(results){
+      processData(results.data);
+    },
+    error: function(err){
+      alert("Erro ao ler arquivo: " + err.message);
+    }
+  });
+}
+
+function showLoading(){
+  document.getElementById('upload-screen').innerHTML = '<div class="loading"><div class="spinner"></div><span>Processando avaliações...</span></div>';
+}
+
+// Auto-load reviews.csv from the same folder on page load
+(function autoLoad(){
+  const candidates = ['reviews.csv','booking_reviews_mackenzie.csv','avaliacoes.csv'];
+  function tryNext(i){
+    if(i >= candidates.length) return; // nenhum encontrado — mostra tela de upload
+    fetch(candidates[i])
+      .then(r => { if(!r.ok) throw new Error('not found'); return r.text(); })
+      .then(text => {
+        showLoading();
+        Papa.parse(text, {
+          header:true, skipEmptyLines:true,
+          complete: r => processData(r.data),
+          error: () => tryNext(i+1)
+        });
+      })
+      .catch(() => tryNext(i+1));
+  }
+  // wait for DOM + Chart.js to be ready
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => tryNext(0));
+  } else {
+    tryNext(0);
+  }
+})();
+
+function processData(raw){
+  allReviews = raw.map((r,i) => {
+    const score = parseFloat(r["Nota de avaliação"]||r["nota_de_avaliacao"]||r["score"]||0);
+    const posText = (r["Avaliação positiva"]||r["positive_text"]||"").trim();
+    const negText = (r["Avaliação negativa"]||r["negative_text"]||"").trim();
+    const titleText = (r["Título da avaliação"]||r["title"]||"").trim();
+    const fullText = (posText+" "+negText+" "+titleText).toLowerCase();
+
+    const date = r["Data da avaliação"]||r["review_date"]||"";
+    const dateObj = date ? new Date(date) : null;
+
+    const noiseResult = detectNoise(fullText);
+    const cleanResult = detectCleaning(fullText, negText.toLowerCase(), posText.toLowerCase());
+    const sentiment = classifySentiment(score, fullText);
+    const intensity = classifyIntensity(score, fullText);
+
+    return {
+      id: i,
+      date: date,
+      dateObj: dateObj,
+      monthKey: dateObj ? `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}` : "",
+      guest: r["Nome do hóspede"]||r["guest_name"]||"—",
+      score: score,
+      posText: posText,
+      negText: negText,
+      titleText: titleText,
+      fullText: fullText,
+      staffScore: parseFloat(r["Funcionários"]||0),
+      cleanScore: parseFloat(r["Limpeza"]||0),
+      locScore: parseFloat(r["Localização"]||0),
+      amenScore: parseFloat(r["Comodidades"]||0),
+      comfScore: parseFloat(r["Conforto"]||0),
+      valueScore: parseFloat(r["Custo-benefício"]||0),
+      sentiment: sentiment,
+      intensity: intensity,
+      mentionsNoise: noiseResult.mentions,
+      noiseOrigins: noiseResult.origins,
+      noiseNeg: noiseResult.negative,
+      mentionsCleaning: cleanResult.mentions,
+      cleaningSubs: cleanResult.subs,
+      cleaningNeg: cleanResult.negative,
+      cleaningPos: cleanResult.positive,
+      operationalRisk: calcRisk(score, noiseResult.negative, cleanResult.negative, intensity)
+    };
+  }).filter(r => r.score > 0 || r.posText || r.negText);
+
+  allReviews.sort((a,b) => (a.dateObj||0) - (b.dateObj||0));
+  filteredReviews = [...allReviews];
+  tableFiltered = [...allReviews];
+
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('sections').style.display = 'block';
+  renderAll();
+}
+
+// ============================================================
+// DETECTION
+// ============================================================
+function detectNoise(text){
+  let mentions = false, negative = false;
+  const origins = new Set();
+  const negTerms = ["barulho demais","não consegui dormir","impossível dormir","noise","noisy","loud","barulho","ruído","ensurdecedor","insuportável","ruidoso","barulho intenso","barulho infernal","som alto","muito alto"];
+  for(const [origin, kws] of Object.entries(noiseKeywords)){
+    for(const kw of kws){
+      if(text.includes(kw)){mentions=true;origins.add(origin);}
+    }
+  }
+  if(mentions){
+    for(const t of negTerms){if(text.includes(t)){negative=true;break;}}
+  }
+  return {mentions, negative, origins:[...origins]};
+}
+
+function detectCleaning(fullText, negText, posText){
+  let mentions = false, negative = false, positive = false;
+  const subs = new Set();
+  for(const [sub, kws] of Object.entries(cleaningKeywords)){
+    for(const kw of kws){
+      if(fullText.includes(kw)){
+        mentions = true;
+        if(sub !== 'positivo') subs.add(sub);
+      }
+    }
+  }
+  if(mentions){
+    const negClean = ["sujo","suja","sujeira","mal cheiro","mau cheiro","fedor","mofo","mancha","sangue","não limpo","não limparam","deixou a desejar","ruim de limpeza","péssima limpeza","faltou limpeza","dirty","smell","stain","mold","cabelo no","lixo","pecando na limpeza"];
+    const posClean = ["limpo","limpa","limpíssimo","limpeza impecável","muito limpo","tudo limpinho","clean","bem limpo","bem limpa"];
+    for(const t of negClean){if(negText.includes(t)||fullText.includes(t)){negative=true;break;}}
+    for(const t of posClean){if(posText.includes(t)||fullText.includes(t)){positive=true;break;}}
+  }
+  return {mentions, negative, positive, subs:[...subs]};
+}
+
+function classifySentiment(score, text){
+  const negTerms = ["horrível","péssimo","terrível","insuportável","não voltaria","nunca mais","abominável","impossível","vergonha","ridículo","absurdo"];
+  if(score >= 9) return "positive";
+  if(score >= 7) return text && negTerms.some(t=>text.includes(t)) ? "negative" : "neutral";
+  if(score >= 5) return "neutral";
+  return "negative";
+}
+
+function classifyIntensity(score, text){
+  const critTerms = ["horrível","péssimo","terrível","insuportável","vergonha","absurdo","ridículo","impossível","nunca mais","não voltaria","ensurdecedor","cheiro de esgoto","sangue","coçamos","nos cocamos"];
+  const modTerms = ["ruim","deixou a desejar","mal","insatisfatório","decepcionante","fraco","não gostei","problema sério"];
+  if(score <= 3 || critTerms.some(t=>text.includes(t))) return "critical";
+  if(score <= 6 || modTerms.some(t=>text.includes(t))) return "moderate";
+  return "light";
+}
+
+function calcRisk(score, noiseNeg, cleanNeg, intensity){
+  if(intensity==="critical"||(noiseNeg&&cleanNeg)) return "critical";
+  if(intensity==="moderate"||(noiseNeg||cleanNeg)&&score<=6) return "high";
+  if((noiseNeg||cleanNeg)&&score<=8) return "medium";
+  return "low";
+}
+
+// ============================================================
+// METRICS
+// ============================================================
+function calcMetrics(reviews){
+  const n = reviews.length;
+  if(!n) return null;
+  const scores = reviews.map(r=>r.score).filter(s=>s>0);
+  const avgScore = avg(scores);
+
+  const noisy = reviews.filter(r=>r.mentionsNoise);
+  const noisyNeg = reviews.filter(r=>r.noiseNeg);
+  const clean = reviews.filter(r=>r.mentionsCleaning);
+  const cleanNeg = reviews.filter(r=>r.cleaningNeg);
+  const cleanPos = reviews.filter(r=>r.cleaningPos&&!r.cleaningNeg);
+  const negative = reviews.filter(r=>r.sentiment==="negative");
+  const positive = reviews.filter(r=>r.sentiment==="positive");
+  const neutral = reviews.filter(r=>r.sentiment==="neutral");
+
+  const avgNoisy = avg(noisy.map(r=>r.score));
+  const avgNoisyNeg = avg(noisyNeg.map(r=>r.score));
+  const avgCleanNeg = avg(cleanNeg.map(r=>r.score));
+  const avgCleanPos = avg(cleanPos.map(r=>r.score));
+
+  // by month
+  const byMonth = groupBy(reviews, r=>r.monthKey);
+  const months = Object.keys(byMonth).sort();
+
+  // trends
+  const recent6 = months.slice(-6);
+  const prev6 = months.slice(-12,-6);
+  const recentScores = recent6.flatMap(m=>(byMonth[m]||[]).map(r=>r.score));
+  const prevScores = prev6.flatMap(m=>(byMonth[m]||[]).map(r=>r.score));
+  const recentAvg = avg(recentScores);
+  const prevAvg = avg(prevScores);
+  const trend = recentAvg - prevAvg;
+
+  // last 30/60/90
+  const now = new Date();
+  const d30 = reviews.filter(r=>r.dateObj&&(now-r.dateObj)<=30*864e5);
+  const d60 = reviews.filter(r=>r.dateObj&&(now-r.dateObj)<=60*864e5);
+  const d90 = reviews.filter(r=>r.dateObj&&(now-r.dateObj)<=90*864e5);
+
+  // noise origins
+  const noiseOrigins = {};
+  for(const r of noisyNeg){for(const o of r.noiseOrigins){noiseOrigins[o]=(noiseOrigins[o]||0)+1;}}
+
+  // cleaning subs
+  const cleanSubs = {};
+  for(const r of cleanNeg){for(const s of r.cleaningSubs){cleanSubs[s]=(cleanSubs[s]||0)+1;}}
+
+  // words
+  const posWords = wordFreq(reviews.map(r=>r.posText).join(" "),true);
+  const negWords = wordFreq(reviews.map(r=>r.negText).join(" "),false);
+
+  // both themes
+  const both = reviews.filter(r=>r.noiseNeg&&r.cleaningNeg);
+
+  // risk
+  const riskCounts = {critical:0,high:0,medium:0,low:0};
+  for(const r of reviews) riskCounts[r.operationalRisk]++;
+
+  return {
+    n, avgScore, avgNoisy, avgNoisyNeg, avgCleanNeg, avgCleanPos,
+    nNoise: noisy.length, nNoisyNeg: noisyNeg.length,
+    nClean: clean.length, nCleanNeg: cleanNeg.length, nCleanPos: cleanPos.length,
+    nNeg: negative.length, nPos: positive.length, nNeu: neutral.length,
+    nBoth: both.length,
+    pctNoise: pct(noisyNeg.length,n), pctClean: pct(cleanNeg.length,n),
+    pctNegNoise: pct(noisyNeg.length,negative.length),
+    pctNegClean: pct(cleanNeg.length,negative.length),
+    impactNoise: avgScore - avgNoisyNeg,
+    impactClean: avgScore - avgCleanNeg,
+    months, byMonth,
+    d30avg: avg(d30.map(r=>r.score)), d60avg: avg(d60.map(r=>r.score)), d90avg: avg(d90.map(r=>r.score)),
+    trend, recentAvg, prevAvg,
+    noiseOrigins, cleanSubs,
+    posWords, negWords, riskCounts,
+    nCritical: riskCounts.critical, nHigh: riskCounts.high,
+    priorityTheme: noisyNeg.length > cleanNeg.length ? "barulho" : "limpeza"
+  };
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function avg(arr){return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;}
+function pct(a,b){return b ? Math.round(a/b*100) : 0;}
+function groupBy(arr, fn){const o={};for(const x of arr){const k=fn(x);(o[k]=o[k]||[]).push(x);}return o;}
+function fmt(n){return isNaN(n)||n===0?"—":n.toFixed(1);}
+function fmtPct(n){return isNaN(n)?0:n;}
+
+const stopWords = new Set(["de","da","do","e","a","o","os","as","um","uma","uns","umas","em","no","na","nos","nas","com","por","para","que","se","ao","à","mas","foi","ter","tudo","bem","não","muito","mais","tem","só","isso","sua","seu","são","dos","das","ou","já","também","poderia","quando","me","ele","ela","meu","minha","pois","pela","pelo","pelo","ser","foi","foi","havia","estava","apenas","além","mesmo"]);
+
+function wordFreq(text, pos){
+  const words = text.toLowerCase().replace(/[^a-záéíóúãõâêîôûç\s]/g," ").split(/\s+/).filter(w=>w.length>3&&!stopWords.has(w));
+  const freq = {};
+  for(const w of words) freq[w]=(freq[w]||0)+1;
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,30);
+}
+
+function monthLabel(key){
+  if(!key) return "";
+  const [y,m] = key.split("-");
+  const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  return `${months[parseInt(m)-1]}/${y.slice(2)}`;
+}
+
+function destroyChart(id){if(activeCharts[id]){activeCharts[id].destroy();delete activeCharts[id];}}
+
+function mkChart(id, config){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  activeCharts[id] = new Chart(ctx, config);
+}
+
+const APE_BLUE = "#003955";
+const APE_GOLD = "#C09100";
+const APE_BLUE_MID = "#005580";
+const APE_BLUE_LIGHT = "#1a7aa8";
+const APE_GRAY = "#6B6B6B";
+const APE_RED = "#d93025";
+const APE_GREEN = "#1a7a4a";
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll(){
+  const m = calcMetrics(filteredReviews);
+  if(!m) return;
+  renderExecutiveSummary(m);
+  renderReputation(m);
+  renderSentiment(m);
+  renderNoise(m);
+  renderCleaning(m);
+  renderComparative(m);
+  renderOperational(m);
+  renderTable();
+  renderRecommendations(m);
+}
+
+// ============================================================
+// EXECUTIVE SUMMARY
+// ============================================================
+function renderExecutiveSummary(m){
+  const trend = m.trend>0.3?"melhorando":m.trend<-0.3?"piorando":"estável";
+  const trendEmoji = m.trend>0.3?"↑":m.trend<-0.3?"↓":"→";
+  const trendColor = m.trend>0.3?APE_GREEN:m.trend<-0.3?APE_RED:APE_GRAY;
+  const riskLevel = m.nCritical > m.n*0.05 ? "alto" : m.nHigh > m.n*0.1 ? "médio" : "baixo";
+  const priority = m.impactNoise > m.impactClean ? "barulho" : "limpeza";
+
+  const posTopWords = m.posWords.slice(0,5).map(w=>w[0]).join(", ");
+  const negTopWords = m.negWords.slice(0,5).map(w=>w[0]).join(", ");
+
+  const exemplosBarulho = filteredReviews.filter(r=>r.noiseNeg&&r.negText).slice(0,2).map(r=>`<li style="margin-bottom:8px">"${r.negText.slice(0,160)}..." <strong style="color:${APE_GOLD}">${r.score}/10</strong></li>`).join("");
+  const exemplosLimpeza = filteredReviews.filter(r=>r.cleaningNeg&&r.negText).slice(0,2).map(r=>`<li style="margin-bottom:8px">"${r.negText.slice(0,160)}..." <strong style="color:${APE_GOLD}">${r.score}/10</strong></li>`).join("");
+
+  document.getElementById('exec-content').innerHTML = `
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card"><div class="kpi-label">Nota Média Geral</div><div class="kpi-value">${fmt(m.avgScore)}</div><div class="kpi-sub">de 10.0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total de Avaliações</div><div class="kpi-value">${m.n}</div><div class="kpi-sub">analisadas</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Tendência</div><div class="kpi-value" style="font-size:22px;color:${trendColor}">${trendEmoji} ${trend}</div><div class="kpi-sub">vs período anterior</div></div>
+      <div class="kpi-card ${riskLevel==='alto'?'red':riskLevel==='médio'?'gold':'green'}"><div class="kpi-label">Risco Reputacional</div><div class="kpi-value" style="font-size:22px">${riskLevel.toUpperCase()}</div><div class="kpi-sub">${m.nCritical} avaliações críticas</div></div>
+      <div class="kpi-card"><div class="kpi-label">Nota Média (30d)</div><div class="kpi-value">${fmt(m.d30avg)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Nota Média (90d)</div><div class="kpi-value">${fmt(m.d90avg)}</div></div>
+    </div>
+    <div class="exec-grid">
+      <div class="exec-text">
+        <h3>Análise Executiva — Apê Smart Studios Mackenzie</h3>
+        <p>No período analisado, o Apê Smart Studios Mackenzie registrou <strong>nota média de ${fmt(m.avgScore)}</strong> com <strong>${m.n} avaliações</strong> no total. Dos hóspedes, <strong>${m.nPos} avaliaram positivamente</strong> (${pct(m.nPos,m.n)}%), ${m.nNeu} de forma neutra e <strong>${m.nNeg} negativamente</strong> (${pct(m.nNeg,m.n)}%).</p>
+        <p>Os <strong>pontos mais positivos</strong> citados pelos hóspedes foram relacionados a: ${posTopWords}.</p>
+        <p>Os <strong>principais pontos negativos</strong> foram: ${negTopWords}.</p>
+        <p><strong>Barulho</strong> aparece em <strong>${m.pctNoise}% das avaliações</strong> e reduz a nota média em <strong>${fmt(m.impactNoise)} pontos</strong> (de ${fmt(m.avgScore)} para ${fmt(m.avgNoisyNeg)}). É mencionado em <strong>${m.pctNegNoise}%</strong> das avaliações negativas.</p>
+        <p><strong>Limpeza negativa</strong> aparece em <strong>${m.pctClean}% das avaliações</strong> e reduz a nota média em <strong>${fmt(m.impactClean)} pontos</strong> (de ${fmt(m.avgScore)} para ${fmt(m.avgCleanNeg)}). É mencionado em <strong>${m.pctNegClean}%</strong> das avaliações negativas.</p>
+        <p>A tendência geral do período é <strong style="color:${trendColor}">${trend}</strong> ${trendEmoji}. O risco reputacional atual é classificado como <strong>${riskLevel}</strong>.</p>
+        <p><strong>Recomendação prioritária:</strong> o tema <strong>${priority}</strong> deve ser atacado primeiro, pois apresenta maior impacto na nota (−${fmt(priority==="barulho"?m.impactNoise:m.impactClean)} pontos) e maior recorrência nas avaliações negativas.</p>
+        ${exemplosBarulho||exemplosLimpeza ? `<div style="margin-top:16px"><strong style="font-size:12px;color:${APE_GRAY};letter-spacing:.5px;text-transform:uppercase">Comentários representativos</strong><ul style="margin-top:10px;padding-left:0;list-style:none">${exemplosBarulho}${exemplosLimpeza}</ul></div>`:""}
+      </div>
+      <div class="exec-side">
+        <div class="priority-card">
+          <div class="label">Prioridade Operacional</div>
+          <h4>${priority === "barulho" ? "🔊 Barulho" : "🧹 Limpeza"}</h4>
+          <p>${priority==="barulho"?"Maior impacto na nota e maior recorrência nas avaliações negativas. Atacar isolamento acústico e comunicação prévia com hóspedes.":"Maior impacto na nota e recorrência nas avaliações negativas. Revisar checklist de limpeza e rotina de inspeção."}</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Impacto Estimado na Nota</div>
+          <canvas id="chart-exec-impact"></canvas>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Avaliações Críticas</div>
+          <div class="kpi-value">${m.nCritical}</div>
+          <div class="kpi-sub">${pct(m.nCritical,m.n)}% do total</div>
+        </div>
+      </div>
+    </div>`;
+  mkChart('chart-exec-impact',{type:'bar',data:{labels:['Nota Geral','Com Barulho','Com Limpeza\nNegativa'],datasets:[{data:[m.avgScore,m.avgNoisyNeg,m.avgCleanNeg],backgroundColor:[APE_BLUE,APE_GOLD,APE_RED],borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+}
+
+// ============================================================
+// REPUTATION
+// ============================================================
+function renderReputation(m){
+  document.getElementById('rep-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Nota Média</div><div class="kpi-value">${fmt(m.avgScore)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total de Avaliações</div><div class="kpi-value">${m.n}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Positivas</div><div class="kpi-value">${m.nPos}</div><div class="kpi-sub">${pct(m.nPos,m.n)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Neutras</div><div class="kpi-value">${m.nNeu}</div><div class="kpi-sub">${pct(m.nNeu,m.n)}%</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Negativas</div><div class="kpi-value">${m.nNeg}</div><div class="kpi-sub">${pct(m.nNeg,m.n)}%</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Nota Média (90d)</div><div class="kpi-value">${fmt(m.d90avg)}</div></div>
+  `;
+  const mLabels = m.months.map(monthLabel);
+  const mAvgScores = m.months.map(mo=>avg((m.byMonth[mo]||[]).map(r=>r.score)));
+  const mVols = m.months.map(mo=>(m.byMonth[mo]||[]).length);
+
+  mkChart('chart-score-time',{type:'line',data:{labels:mLabels,datasets:[{label:'Nota Média',data:mAvgScores,borderColor:APE_BLUE,backgroundColor:'rgba(0,57,85,0.07)',tension:0.4,fill:true,pointRadius:2,borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}}}}});
+  mkChart('chart-vol-month',{type:'bar',data:{labels:mLabels,datasets:[{label:'Avaliações',data:mVols,backgroundColor:APE_BLUE+'cc',borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}}}}});
+
+  const dist = [0,0,0,0];
+  for(const r of filteredReviews){if(r.score<=3)dist[0]++;else if(r.score<=6)dist[1]++;else if(r.score<=8)dist[2]++;else dist[3]++;}
+  mkChart('chart-score-dist',{type:'doughnut',data:{labels:['1–3','4–6','7–8','9–10'],datasets:[{data:dist,backgroundColor:[APE_RED,APE_GOLD,"#1a7aa880",APE_BLUE],borderWidth:0}]},options:{plugins:{legend:{position:'bottom',labels:{color:APE_BLUE,font:{family:'Helvetica'},padding:12}}},cutout:'60%'}});
+
+  const subLabels = ['Funcionários','Limpeza','Localização','Comodidades','Conforto','Custo-Benefício'];
+  const subData = [
+    avg(filteredReviews.map(r=>r.staffScore).filter(s=>s>0)),
+    avg(filteredReviews.map(r=>r.cleanScore).filter(s=>s>0)),
+    avg(filteredReviews.map(r=>r.locScore).filter(s=>s>0)),
+    avg(filteredReviews.map(r=>r.amenScore).filter(s=>s>0)),
+    avg(filteredReviews.map(r=>r.comfScore).filter(s=>s>0)),
+    avg(filteredReviews.map(r=>r.valueScore).filter(s=>s>0))
+  ];
+  mkChart('chart-subcats',{type:'bar',data:{labels:subLabels,datasets:[{data:subData,backgroundColor:APE_BLUE,borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+
+  const pw = document.getElementById('words-pos'); pw.innerHTML='';
+  const nw = document.getElementById('words-neg'); nw.innerHTML='';
+  const maxP = m.posWords[0]?.[1]||1, maxN = m.negWords[0]?.[1]||1;
+  m.posWords.slice(0,25).forEach(([w,c])=>{const s=12+Math.round((c/maxP)*14);pw.innerHTML+=`<span class="word-tag pos" style="font-size:${s}px">${w} <span style="opacity:.6;font-size:11px">${c}</span></span>`;});
+  m.negWords.slice(0,25).forEach(([w,c])=>{const s=12+Math.round((c/maxN)*14);nw.innerHTML+=`<span class="word-tag neg" style="font-size:${s}px">${w} <span style="opacity:.6;font-size:11px">${c}</span></span>`;});
+}
+
+// ============================================================
+// SENTIMENT
+// ============================================================
+function renderSentiment(m){
+  document.getElementById('sent-kpis').innerHTML = `
+    <div class="kpi-card green"><div class="kpi-label">Positivas</div><div class="kpi-value">${m.nPos}</div><div class="kpi-sub">${pct(m.nPos,m.n)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Neutras</div><div class="kpi-value">${m.nNeu}</div><div class="kpi-sub">${pct(m.nNeu,m.n)}%</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Negativas</div><div class="kpi-value">${m.nNeg}</div><div class="kpi-sub">${pct(m.nNeg,m.n)}%</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Críticas</div><div class="kpi-value">${m.riskCounts.critical}</div><div class="kpi-sub">${pct(m.riskCounts.critical,m.n)}%</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Moderadas</div><div class="kpi-value">${m.riskCounts.high+m.riskCounts.medium}</div></div>
+  `;
+  const mLabels = m.months.map(monthLabel);
+  const mPos = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.sentiment==="positive").length);
+  const mNeu = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.sentiment==="neutral").length);
+  const mNeg = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.sentiment==="negative").length);
+  mkChart('chart-sent-time',{type:'bar',data:{labels:mLabels,datasets:[{label:'Positiva',data:mPos,backgroundColor:APE_BLUE,borderRadius:2},{label:'Neutra',data:mNeu,backgroundColor:APE_BLUE_LIGHT+'80',borderRadius:2},{label:'Negativa',data:mNeg,backgroundColor:APE_RED+'cc',borderRadius:2}]},options:{plugins:{legend:{labels:{color:APE_BLUE,font:{family:'Helvetica'}}}},scales:{x:{stacked:true,ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}},y:{stacked:true,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}}}}});
+  mkChart('chart-sent-dist',{type:'doughnut',data:{labels:['Positiva','Neutra','Negativa'],datasets:[{data:[m.nPos,m.nNeu,m.nNeg],backgroundColor:[APE_BLUE,APE_BLUE_LIGHT,APE_RED],borderWidth:0}]},options:{plugins:{legend:{position:'bottom',labels:{color:APE_BLUE,font:{family:'Helvetica'},padding:12}}},cutout:'60%'}});
+  mkChart('chart-intensity',{type:'bar',data:{labels:['Leve','Moderada','Crítica'],datasets:[{data:[filteredReviews.filter(r=>r.intensity==="light").length,filteredReviews.filter(r=>r.intensity==="moderate").length,filteredReviews.filter(r=>r.intensity==="critical").length],backgroundColor:[APE_BLUE_LIGHT,APE_GOLD,APE_RED],borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+  const themes = {barulho:m.nNoisyNeg,limpeza:m.nCleanNeg,atendimento:filteredReviews.filter(r=>/(atendimento|recepção|funcionário|staff).*(ruim|péssim|horr|difícil|lento|mau)/i.test(r.fullText)).length,"wifi\/internet":filteredReviews.filter(r=>/(wi.fi|wifi|internet).*(ruim|fraco|não funcionou|caindo|lento)/i.test(r.fullText)).length,conforto:filteredReviews.filter(r=>/(cama|colchão|travesseiro).*(duro|ruim|incômodo|desconfortável|estreita)/i.test(r.fullText)).length};
+  mkChart('chart-neg-themes',{type:'bar',data:{labels:Object.keys(themes),datasets:[{data:Object.values(themes),backgroundColor:[APE_GOLD,APE_BLUE_LIGHT,APE_BLUE,APE_GRAY,"#7a9ab8"],borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+}
+
+// ============================================================
+// NOISE
+// ============================================================
+function renderNoise(m){
+  const negWithNoise = filteredReviews.filter(r=>r.sentiment==="negative"&&r.noiseNeg).length;
+  document.getElementById('noise-kpis').innerHTML = `
+    <div class="kpi-card red"><div class="kpi-label">Menções de Barulho</div><div class="kpi-value">${m.nNoisyNeg}</div><div class="kpi-sub">${m.pctNoise}% das avaliações</div></div>
+    <div class="kpi-card red"><div class="kpi-label">% Neg. com Barulho</div><div class="kpi-value">${pct(negWithNoise,m.nNeg)}%</div><div class="kpi-sub">das avaliações negativas</div></div>
+    <div class="kpi-card"><div class="kpi-label">Nota Média Geral</div><div class="kpi-value">${fmt(m.avgScore)}</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Nota com Barulho</div><div class="kpi-value">${fmt(m.avgNoisyNeg)}</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Impacto na Nota</div><div class="kpi-value">−${fmt(m.impactNoise)}</div><div class="kpi-sub">pontos</div></div>
+  `;
+  const mLabels = m.months.map(monthLabel);
+  const mNoise = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.noiseNeg).length);
+  const mNoiseAll = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.mentionsNoise).length);
+  mkChart('chart-noise-month',{type:'bar',data:{labels:mLabels,datasets:[{label:'Reclamações de Barulho',data:mNoise,backgroundColor:APE_GOLD+'cc',borderRadius:3},{label:'Menciona Barulho',data:mNoiseAll,backgroundColor:APE_BLUE+'44',borderRadius:3}]},options:{plugins:{legend:{labels:{color:APE_BLUE,font:{family:'Helvetica'}}}},scales:{x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}}}}});
+
+  const originLabels = {rua:"Rua / Trânsito",hospedes:"Hóspedes",corredor:"Corredor / Portas",obra:"Obras",acustico:"Isolamento Acústico",interno:"Operação Interna",geral:"Não identificado"};
+  const originData = noiseOriginOrder.map(o=>m.noiseOrigins[o]||0);
+  mkChart('chart-noise-origin',{type:'doughnut',data:{labels:noiseOriginOrder.map(o=>originLabels[o]),datasets:[{data:originData,backgroundColor:[APE_BLUE,APE_GOLD,APE_BLUE_MID,APE_RED,APE_BLUE_LIGHT,"#7a9ab8",APE_GRAY],borderWidth:0}]},options:{plugins:{legend:{position:'right',labels:{color:APE_BLUE,font:{family:'Helvetica'},padding:10,boxWidth:12}}},cutout:'55%'}});
+
+  const mAvgNoise = m.months.map(mo=>{const v=(m.byMonth[mo]||[]).filter(r=>r.noiseNeg);return v.length?avg(v.map(r=>r.score)):null;});
+  const mAvgGen = m.months.map(mo=>avg((m.byMonth[mo]||[]).map(r=>r.score)));
+  mkChart('chart-noise-impact',{type:'line',data:{labels:mLabels,datasets:[{label:'Nota Geral',data:mAvgGen,borderColor:APE_BLUE,backgroundColor:'rgba(0,57,85,0.05)',tension:0.4,borderWidth:2,fill:true,pointRadius:2},{label:'Nota com Barulho',data:mAvgNoise,borderColor:APE_GOLD,tension:0.4,borderWidth:2,pointRadius:3,borderDash:[4,4]}]},options:{plugins:{legend:{labels:{color:APE_BLUE,font:{family:'Helvetica'}}}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}}}}});
+
+  const topOrigin = noiseOriginOrder.sort((a,b)=>(m.noiseOrigins[b]||0)-(m.noiseOrigins[a]||0))[0];
+  const maxNoiseMonth = m.months[mNoise.indexOf(Math.max(...mNoise))];
+  const growing = mNoise.slice(-3).reduce((a,b)=>a+b,0) > mNoise.slice(-6,-3).reduce((a,b)=>a+b,0);
+  document.getElementById('noise-insight').innerHTML = `
+    <h3>Conclusão — Barulho</h3>
+    <ul>
+      <li>O barulho aparece em <strong>${m.pctNoise}% das avaliações</strong> e reduz a nota média em <strong>−${fmt(m.impactNoise)} pontos</strong>.</li>
+      <li>O período com maior volume de reclamações foi <strong>${monthLabel(maxNoiseMonth)||"—"}</strong>.</li>
+      <li>A principal origem identificada é <strong>${{rua:"Rua / Trânsito",hospedes:"Hóspedes",corredor:"Corredor / Portas",obra:"Obras",acustico:"Isolamento Acústico",interno:"Operação Interna",geral:"Não identificado"}[topOrigin]||"não identificada"}</strong>.</li>
+      <li>Tendência: o problema está <strong>${growing?"crescendo":"estável ou diminuindo"}</strong> nos últimos meses.</li>
+      <li>${m.impactNoise > 1.5 ? "⚠ Impacto alto — barulho está derrubando a nota de forma significativa." : m.impactNoise > 0.8 ? "Impacto moderado — o tema precisa de atenção." : "Impacto baixo — o barulho existe mas não é o principal fator de queda."}</li>
+    </ul>`;
+
+  const nc = document.getElementById('noise-comments');
+  const noiseRevs = filteredReviews.filter(r=>r.noiseNeg&&r.negText).sort((a,b)=>a.score-b.score).slice(0,6);
+  nc.innerHTML = noiseRevs.length ? noiseRevs.map(r=>`<div style="border-bottom:1px solid #f0f0f0;padding:14px 0;display:flex;gap:12px"><span class="score-badge ${r.score>=7?'score-high':r.score>=4?'score-mid':'score-low'}" style="flex-shrink:0">${r.score}/10</span><div><p style="font-size:13px;color:#333;line-height:1.6">${r.negText.slice(0,300)}</p><p style="font-size:11px;color:var(--ape-gray);margin-top:4px">${r.guest} · ${r.date.slice(0,10)}</p></div></div>`).join("") : '<div class="no-data">Nenhuma reclamação de barulho encontrada.</div>';
+}
+
+// ============================================================
+// CLEANING
+// ============================================================
+function renderCleaning(m){
+  document.getElementById('clean-kpis').innerHTML = `
+    <div class="kpi-card red"><div class="kpi-label">Reclamações de Limpeza</div><div class="kpi-value">${m.nCleanNeg}</div><div class="kpi-sub">${m.pctClean}% das avaliações</div></div>
+    <div class="kpi-card red"><div class="kpi-label">% nas Negativas</div><div class="kpi-value">${m.pctNegClean}%</div><div class="kpi-sub">das avaliações negativas</div></div>
+    <div class="kpi-card"><div class="kpi-label">Nota Média Geral</div><div class="kpi-value">${fmt(m.avgScore)}</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Nota com Limpeza Neg.</div><div class="kpi-value">${fmt(m.avgCleanNeg)}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Nota com Limpeza Pos.</div><div class="kpi-value">${fmt(m.avgCleanPos)}</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Impacto na Nota</div><div class="kpi-value">−${fmt(m.impactClean)}</div><div class="kpi-sub">pontos</div></div>
+  `;
+  const mLabels = m.months.map(monthLabel);
+  const mClean = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.cleaningNeg).length);
+  mkChart('chart-clean-month',{type:'bar',data:{labels:mLabels,datasets:[{label:'Reclamações de Limpeza',data:mClean,backgroundColor:APE_BLUE_LIGHT+'cc',borderRadius:3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}}}}});
+
+  const subLabels2 = {banheiro:"Banheiro",cama:"Roupa de Cama",toalhas:"Toalhas",piso:"Piso",cheiro:"Cheiro/Odor",mofo:"Mofo",cabelo:"Cabelo",lixo:"Lixo",manchas:"Manchas",manutencao:"Manutenção",frequencia:"Freq. Limpeza"};
+  const subData2 = Object.keys(subLabels2).map(k=>m.cleanSubs[k]||0);
+  mkChart('chart-clean-subs',{type:'bar',data:{labels:Object.values(subLabels2),datasets:[{data:subData2,backgroundColor:APE_BLUE,borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},font:{size:11}}}}}});
+
+  const mAvgClean = m.months.map(mo=>{const v=(m.byMonth[mo]||[]).filter(r=>r.cleaningNeg);return v.length?avg(v.map(r=>r.score)):null;});
+  const mAvgGen = m.months.map(mo=>avg((m.byMonth[mo]||[]).map(r=>r.score)));
+  mkChart('chart-clean-impact',{type:'line',data:{labels:mLabels,datasets:[{label:'Nota Geral',data:mAvgGen,borderColor:APE_BLUE,tension:0.4,borderWidth:2,fill:false,pointRadius:2},{label:'Com Limpeza Negativa',data:mAvgClean,borderColor:APE_RED,tension:0.4,borderWidth:2,borderDash:[4,4],pointRadius:3}]},options:{plugins:{legend:{labels:{color:APE_BLUE,font:{family:'Helvetica'}}}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}}}}});
+
+  const topSub = Object.keys(subLabels2).sort((a,b)=>(m.cleanSubs[b]||0)-(m.cleanSubs[a]||0))[0];
+  const maxCleanMonth = m.months[mClean.indexOf(Math.max(...mClean))];
+  const growingC = mClean.slice(-3).reduce((a,b)=>a+b,0) > mClean.slice(-6,-3).reduce((a,b)=>a+b,0);
+  document.getElementById('clean-insight').innerHTML = `
+    <h3>Conclusão — Limpeza</h3>
+    <ul>
+      <li>Limpeza negativa aparece em <strong>${m.pctClean}% das avaliações</strong> e reduz a nota média em <strong>−${fmt(m.impactClean)} pontos</strong>.</li>
+      <li>O mês com maior volume de reclamações foi <strong>${monthLabel(maxCleanMonth)||"—"}</strong>.</li>
+      <li>O subtema mais frequente é <strong>${subLabels2[topSub]||"—"}</strong>.</li>
+      <li>Tendência: o problema está <strong>${growingC?"crescendo":"estável ou diminuindo"}</strong> nos últimos meses.</li>
+      <li>${m.impactClean > 1.5 ? "⚠ Impacto alto — limpeza está derrubando a nota significativamente." : m.impactClean > 0.8 ? "Impacto moderado — o tema precisa de ação imediata." : "Impacto controlado — monitorar frequência."}</li>
+    </ul>`;
+
+  const cc = document.getElementById('clean-comments');
+  const cleanRevs = filteredReviews.filter(r=>r.cleaningNeg&&r.negText).sort((a,b)=>a.score-b.score).slice(0,6);
+  cc.innerHTML = cleanRevs.length ? cleanRevs.map(r=>`<div style="border-bottom:1px solid #f0f0f0;padding:14px 0;display:flex;gap:12px"><span class="score-badge ${r.score>=7?'score-high':r.score>=4?'score-mid':'score-low'}" style="flex-shrink:0">${r.score}/10</span><div><p style="font-size:13px;color:#333;line-height:1.6">${r.negText.slice(0,300)}</p><p style="font-size:11px;color:var(--ape-gray);margin-top:4px">${r.guest} · ${r.date.slice(0,10)}</p></div></div>`).join("") : '<div class="no-data">Nenhuma reclamação de limpeza encontrada.</div>';
+}
+
+// ============================================================
+// COMPARATIVE
+// ============================================================
+function renderComparative(m){
+  const priority = m.impactNoise > m.impactClean ? "barulho" : "limpeza";
+  document.getElementById('comp-kpis').innerHTML = `
+    <div class="kpi-card gold"><div class="kpi-label">Menções Barulho</div><div class="kpi-value">${m.nNoisyNeg}</div><div class="kpi-sub">${m.pctNoise}% das avaliações</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Menções Limpeza</div><div class="kpi-value">${m.nCleanNeg}</div><div class="kpi-sub">${m.pctClean}% das avaliações</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Impacto Barulho</div><div class="kpi-value">−${fmt(m.impactNoise)}</div><div class="kpi-sub">pontos na nota</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Impacto Limpeza</div><div class="kpi-value">−${fmt(m.impactClean)}</div><div class="kpi-sub">pontos na nota</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ambos os Temas</div><div class="kpi-value">${m.nBoth}</div><div class="kpi-sub">avaliações com os 2 temas</div></div>
+    <div class="kpi-card ${priority==='barulho'?'gold':'red'}"><div class="kpi-label">Prioridade</div><div class="kpi-value" style="font-size:16px">${priority==="barulho"?"🔊 Barulho":"🧹 Limpeza"}</div></div>
+  `;
+  const mLabels = m.months.map(monthLabel);
+  const mNoise = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.noiseNeg).length);
+  const mClean = m.months.map(mo=>(m.byMonth[mo]||[]).filter(r=>r.cleaningNeg).length);
+  mkChart('chart-comp-month',{type:'line',data:{labels:mLabels,datasets:[{label:'Barulho',data:mNoise,borderColor:APE_GOLD,backgroundColor:'rgba(192,145,0,0.07)',tension:0.4,borderWidth:2,fill:true,pointRadius:2},{label:'Limpeza',data:mClean,borderColor:APE_RED,tension:0.4,borderWidth:2,pointRadius:2}]},options:{plugins:{legend:{labels:{color:APE_BLUE,font:{family:'Helvetica'}}}},scales:{x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'},maxTicksLimit:12,maxRotation:45}},y:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}}}}});
+  mkChart('chart-comp-scores',{type:'bar',data:{labels:['Nota Geral','Com Barulho','Com Limpeza Neg.','Ambos os Temas'],datasets:[{data:[m.avgScore,m.avgNoisyNeg,m.avgCleanNeg,avg(filteredReviews.filter(r=>r.noiseNeg&&r.cleaningNeg).map(r=>r.score))],backgroundColor:[APE_BLUE,APE_GOLD,APE_RED,"#8a1a12"],borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+
+  // Heatmap
+  const hmRows = [{label:"Barulho",data:mNoise},{label:"Limpeza",data:mClean}];
+  const maxVal = Math.max(...mNoise,...mClean,1);
+  let hm = '<table class="heatmap-table"><thead><tr><th></th>'+mLabels.map(l=>`<th>${l}</th>`).join('')+'</tr></thead><tbody>';
+  for(const row of hmRows){
+    hm += `<tr><td class="hm-label">${row.label}</td>${row.data.map(v=>{const lvl=Math.min(5,Math.round((v/maxVal)*5));return`<td class="hm-${lvl}">${v||''}</td>`;}).join('')}</tr>`;
+  }
+  hm += '</tbody></table>';
+  document.getElementById('heatmap').innerHTML = hm;
+
+  document.getElementById('comp-insight').innerHTML = `
+    <h3>Conclusão — Barulho vs Limpeza</h3>
+    <ul>
+      <li>O tema com maior volume de reclamações é <strong>${m.nNoisyNeg>m.nCleanNeg?"barulho":"limpeza"}</strong> (${m.nNoisyNeg>m.nCleanNeg?m.nNoisyNeg:m.nCleanNeg} menções).</li>
+      <li>O tema com maior impacto na nota é <strong>${priority}</strong> (−${fmt(priority==="barulho"?m.impactNoise:m.impactClean)} pontos).</li>
+      <li>Existem <strong>${m.nBoth} avaliações</strong> que mencionam os dois temas simultaneamente, com nota média de ${fmt(avg(filteredReviews.filter(r=>r.noiseNeg&&r.cleaningNeg).map(r=>r.score)))}.</li>
+      <li>Recomendação: <strong>priorizar ${priority}</strong> por ter maior impacto reputacional e operacional.</li>
+    </ul>`;
+}
+
+// ============================================================
+// OPERATIONAL
+// ============================================================
+function renderOperational(m){
+  const riskLevel = m.nCritical > m.n*0.05 ? "Crítico" : m.nHigh > m.n*0.1 ? "Alto" : m.nNoisyNeg+m.nCleanNeg > m.n*0.15 ? "Médio" : "Baixo";
+  const riskClass = {Crítico:"critical",Alto:"high",Médio:"medium",Baixo:"low"}[riskLevel];
+  document.getElementById('op-kpis').innerHTML = `
+    <div class="kpi-card ${riskClass==='critical'?'red':riskClass==='high'?'gold':riskClass==='medium'?'':' green'}"><div class="kpi-label">Risco Reputacional</div><div class="kpi-value" style="font-size:18px">${riskLevel}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Índice de Reclamação Op.</div><div class="kpi-value">${pct(m.nNoisyNeg+m.nCleanNeg,m.n)}%</div><div class="kpi-sub">barulho + limpeza</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">% Neg. com Barulho</div><div class="kpi-value">${m.pctNegNoise}%</div></div>
+    <div class="kpi-card red"><div class="kpi-label">% Neg. com Limpeza</div><div class="kpi-value">${m.pctNegClean}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tema Mais Urgente</div><div class="kpi-value" style="font-size:16px">${m.priorityTheme==="barulho"?"🔊 Barulho":"🧹 Limpeza"}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tendência</div><div class="kpi-value" style="font-size:16px;color:${m.trend>0.3?APE_GREEN:m.trend<-0.3?APE_RED:APE_GRAY}">${m.trend>0.3?"↑ Melhorando":m.trend<-0.3?"↓ Piorando":"→ Estável"}</div></div>
+  `;
+  const mLabels = m.months.slice(-6).map(monthLabel);
+  const recent = m.months.slice(-6);
+  mkChart('chart-trend',{type:'line',data:{labels:mLabels,datasets:[{label:'Nota Média',data:recent.map(mo=>avg((m.byMonth[mo]||[]).map(r=>r.score))),borderColor:APE_BLUE,backgroundColor:'rgba(0,57,85,0.08)',fill:true,tension:0.4,borderWidth:2,pointRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:APE_GRAY,font:{family:'Helvetica'}},grid:{color:"#f0f0f0"}},x:{ticks:{color:APE_GRAY,font:{family:'Helvetica'}}}}}});
+  mkChart('chart-crit',{type:'doughnut',data:{labels:['Crítico','Alto','Médio','Baixo'],datasets:[{data:[m.riskCounts.critical,m.riskCounts.high,m.riskCounts.medium,m.riskCounts.low],backgroundColor:[APE_RED,APE_GOLD,APE_BLUE_LIGHT,APE_BLUE],borderWidth:0}]},options:{plugins:{legend:{position:'bottom',labels:{color:APE_BLUE,font:{family:'Helvetica'},padding:10}}},cutout:'60%'}});
+
+  document.getElementById('priority-card-wrap').innerHTML = `
+    <div class="priority-card" style="margin-top:24px">
+      <div class="label">Prioridade Operacional da Semana</div>
+      <h4>${m.priorityTheme==="barulho"?"🔊 Atacar o problema de barulho":"🧹 Reforçar padrão de limpeza"}</h4>
+      <p>${m.priorityTheme==="barulho"?"Mapear quartos mais afetados, investigar isolamento acústico e criar comunicação prévia com hóspedes sobre localização próxima a bares e vias movimentadas.":"Revisar checklist de limpeza, criar auditoria amostral diária e reforçar inspeção antes de cada check-in. Priorizar banheiro, roupa de cama e eliminação de odores."}</p>
+    </div>`;
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+let currentTableData = [];
+function renderTable(){
+  document.getElementById('table-head').innerHTML = `<tr>
+    <th>Data</th><th>Hóspede</th><th>Nota</th><th>Sentimento</th>
+    <th>Barulho</th><th>Limpeza</th><th>Risco</th>
+    <th>Comentário Positivo</th><th>Comentário Negativo</th>
+  </tr>`;
+  currentTableData = [...tableFiltered];
+  currentPage = 1;
+  renderTablePage();
+}
+
+function renderTablePage(){
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page = currentTableData.slice(start, start+PAGE_SIZE);
+  document.getElementById('table-info').textContent = `Exibindo ${start+1}–${Math.min(start+PAGE_SIZE,currentTableData.length)} de ${currentTableData.length} avaliações`;
+  const riskLabel = {critical:"Crítico",high:"Alto",medium:"Médio",low:"Baixo"};
+  document.getElementById('table-body').innerHTML = page.map(r=>`<tr>
+    <td style="white-space:nowrap">${r.date.slice(0,10)}</td>
+    <td>${r.guest}</td>
+    <td><span class="score-badge ${r.score>=7?'score-high':r.score>=4?'score-mid':'score-low'}">${r.score}</span></td>
+    <td><span class="sentiment-tag ${r.sentiment==='positive'?'sentiment-pos':r.sentiment==='negative'?'sentiment-neg':'sentiment-neu'}">${r.sentiment==='positive'?'Positivo':r.sentiment==='negative'?'Negativo':'Neutro'}</span></td>
+    <td style="text-align:center">${r.noiseNeg?'<span class="tag-yes" title="Sim"></span>Sim':'<span class="tag-no"></span>'}</td>
+    <td style="text-align:center">${r.cleaningNeg?'<span class="tag-yes" title="Sim"></span>Sim':'<span class="tag-no"></span>'}</td>
+    <td><span class="risk-badge ${r.operationalRisk}">${riskLabel[r.operationalRisk]}</span></td>
+    <td><div class="text-truncate" title="${r.posText}">${r.posText||'—'}</div></td>
+    <td><div class="text-truncate" title="${r.negText}">${r.negText||'—'}</div></td>
+  </tr>`).join('');
+  renderPagination();
+}
+
+function renderPagination(){
+  const total = Math.ceil(currentTableData.length/PAGE_SIZE);
+  let html = '';
+  for(let i=1;i<=Math.min(total,20);i++){html+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;}
+  if(total>20) html+=`<span style="color:var(--ape-gray);font-size:12px"> ... ${total} páginas</span>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+function goPage(p){currentPage=p;renderTablePage();}
+
+function applyTableFilter(){
+  const from = document.getElementById('f-date-from').value;
+  const to = document.getElementById('f-date-to').value;
+  const scoreMin = parseFloat(document.getElementById('f-score').value||0);
+  const scoreMax = parseFloat(document.getElementById('f-score-max').value||10);
+  const sent = document.getElementById('f-sent').value;
+  const noise = document.getElementById('f-noise').value;
+  const clean = document.getElementById('f-clean').value;
+  const crit = document.getElementById('f-crit').value;
+  tableFiltered = allReviews.filter(r=>{
+    if(from&&r.date<from) return false;
+    if(to&&r.date>to+"z") return false;
+    if(scoreMin&&r.score<scoreMin) return false;
+    if(scoreMax&&r.score>scoreMax) return false;
+    if(sent&&r.sentiment!==sent) return false;
+    if(noise==="yes"&&!r.noiseNeg) return false;
+    if(noise==="no"&&r.noiseNeg) return false;
+    if(clean==="yes"&&!r.cleaningNeg) return false;
+    if(clean==="no"&&r.cleaningNeg) return false;
+    if(crit&&r.intensity!==crit) return false;
+    return true;
+  });
+  renderTable();
+}
+
+function resetTableFilter(){
+  document.getElementById('f-date-from').value='';
+  document.getElementById('f-date-to').value='';
+  document.getElementById('f-score').value='';
+  document.getElementById('f-score-max').value='';
+  document.getElementById('f-sent').value='';
+  document.getElementById('f-noise').value='';
+  document.getElementById('f-clean').value='';
+  document.getElementById('f-crit').value='';
+  tableFiltered=[...allReviews];
+  renderTable();
+}
+
+function exportCSV(){
+  const headers = ["Data","Hóspede","Nota","Sentimento","Intensidade","Barulho","Limpeza","Risco","Positivo","Negativo"];
+  const rows = currentTableData.map(r=>[r.date,r.guest,r.score,r.sentiment,r.intensity,r.noiseNeg?"Sim":"Não",r.cleaningNeg?"Sim":"Não",r.operationalRisk,`"${(r.posText||"").replace(/"/g,"'")}"`,`"${(r.negText||"").replace(/"/g,"'")}"`]);
+  const csv = [headers.join(","),...rows.map(r=>r.join(","))].join("\n");
+  const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ape_mackenzie_reviews.csv";
+  a.click();
+}
+
+// ============================================================
+// RECOMMENDATIONS
+// ============================================================
+function renderRecommendations(m){
+  document.getElementById('rec-content').innerHTML = `
+    <div class="rec-grid">
+      <div class="rec-card">
+        <h3><div class="rec-icon"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z"/><path d="M12 6v6l4 2"/></svg></div>Ações para Barulho</h3>
+        <ul class="rec-list">
+          <li>Mapear quais quartos são mais afetados por ruído externo (frente vs fundo) e criar orientação de quarto preferencial para hóspedes sensíveis ao barulho.</li>
+          <li>Avaliar vedação de janelas e borrachas de porta nos quartos mais citados nas avaliações.</li>
+          <li>Criar comunicação prévia no processo de reserva alertando sobre a localização em região com vida noturna ativa.</li>
+          <li>Sinalizar horários de silêncio nos corredores e áreas comuns.</li>
+          <li>Investigar corredores, elevadores e áreas comuns como fontes de ruído interno.</li>
+          <li>Criar resposta padrão personalizada para avaliações que citem barulho.</li>
+          ${m.impactNoise > 1.5 ? '<li>Avaliar prioridade de investimento em melhoria acústica nos quartos mais reclamados.</li>' : ''}
+        </ul>
+      </div>
+      <div class="rec-card">
+        <h3><div class="rec-icon"><svg viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>Ações para Limpeza</h3>
+        <ul class="rec-list">
+          <li>Revisar e atualizar o checklist de limpeza por quarto, com foco em banheiro, roupa de cama, toalhas e eliminação de odores.</li>
+          <li>Criar rotina de auditoria amostral diária, com checagem aleatória de quartos antes do check-in.</li>
+          <li>Implementar inspeção obrigatória antes de cada check-in para garantir padrão de entrega.</li>
+          <li>Mapear reclamações por tipo (banheiro, cheiro, manchas) para identificar gargalos operacionais recorrentes.</li>
+          <li>Diferenciar sujeira real de percepção de desgaste — criar plano de manutenção preventiva de enxoval e mobiliário.</li>
+          <li>Criar treinamento específico sobre limpeza profunda de banheiro, roupa de cama e eliminação de odores.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec-grid">
+      <div class="rec-card">
+        <h3>Resposta Padrão — Barulho</h3>
+        <div class="response-box">
+          <strong>Modelo para o Booking.com</strong>
+          Olá, [nome]. Obrigado por compartilhar sua experiência com a gente. Sentimos muito que o barulho tenha atrapalhado sua estadia. Já estamos olhando esse ponto com atenção para entender a origem do ruído e melhorar cada vez mais a experiência no Apê Mackenzie. Sempre que houver qualquer desconforto durante a estadia, nossa recepção está à disposição para ajudar na hora. Esperamos te receber novamente em uma próxima oportunidade.
+        </div>
+      </div>
+      <div class="rec-card">
+        <h3>Resposta Padrão — Limpeza</h3>
+        <div class="response-box">
+          <strong>Modelo para o Booking.com</strong>
+          Olá, [nome]. Obrigado pelo seu feedback. Sentimos muito que a limpeza do quarto não tenha ficado dentro do padrão que queremos entregar. Esse ponto já foi encaminhado para o time responsável para reforçarmos a conferência antes de cada check-in. Sua opinião ajuda muito a gente a evoluir e proporcionar uma experiência cada vez melhor. Esperamos receber você novamente no Apê Mackenzie.
+        </div>
+      </div>
+    </div>
+    <div class="insight-box" style="margin-top:4px">
+      <h3>Plano de Ação — Prioridades</h3>
+      <ul>
+        <li><strong>Esta semana:</strong> ${m.priorityTheme==="barulho"?"Mapear quartos afetados por barulho e criar comunicação de check-in sobre localização.":"Realizar auditoria de limpeza nos quartos mais reclamados e revisar checklist."}</li>
+        <li><strong>Este mês:</strong> ${m.priorityTheme==="barulho"?"Avaliar vedação de janelas e instalar borrachas de vedação nas portas dos quartos mais citados.":"Implementar inspeção pré check-in obrigatória e criar relatório semanal de não-conformidades."}</li>
+        <li><strong>Próximo trimestre:</strong> ${m.priorityTheme==="barulho"?"Avaliar investimento em isolamento acústico nos quartos da frente / que dão para a rua.":"Renovar enxoval dos quartos mais reclamados e criar plano de manutenção preventiva."}</li>
+        <li><strong>Monitoramento:</strong> Acompanhar mensalmente a nota média com e sem menção a ${m.priorityTheme} para medir evolução das ações.</li>
+      </ul>
+    </div>`;
+}
+
+// ============================================================
+// NAVIGATION — lazy chart rendering per section
+// ============================================================
+const renderedSections = new Set();
+
+function showSection(id, btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  // btn may be passed explicitly or found via event
+  const navBtn = btn || (typeof event !== 'undefined' && event.target);
+  if(navBtn) navBtn.classList.add('active');
+
+  // re-render charts for this section if data is loaded and section not yet rendered
+  if(allReviews.length && !renderedSections.has(id)){
+    renderedSections.add(id);
+    const m = calcMetrics(filteredReviews);
+    if(!m) return;
+    if(id==='barulho') renderNoise(m);
+    else if(id==='limpeza') renderCleaning(m);
+    else if(id==='comparativo') renderComparative(m);
+    else if(id==='sentimento') renderSentiment(m);
+    else if(id==='reputacao') renderReputation(m);
+    else if(id==='operacional') renderOperational(m);
+  }
+}
+
+// override renderAll to only eagerly render the active section's charts
+// (all non-chart content is always rendered; charts are lazy per section)
+function renderAll(){
+  const m = calcMetrics(filteredReviews);
+  if(!m) return;
+  renderedSections.clear();
+  renderExecutiveSummary(m);
+  renderRecommendations(m);
+  // Render charts only for the currently active section
+  const activeId = document.querySelector('.section.active')?.id?.replace('section-','') || 'resumo';
+  renderedSections.add(activeId);
+  renderedSections.add('resumo');
+  if(activeId==='reputacao') renderReputation(m);
+  else if(activeId==='sentimento') renderSentiment(m);
+  else if(activeId==='barulho') renderNoise(m);
+  else if(activeId==='limpeza') renderCleaning(m);
+  else if(activeId==='comparativo') renderComparative(m);
+  else if(activeId==='operacional') renderOperational(m);
+  else renderReputation(m); // pre-render reputation as it's usually next
+  // Always prep KPIs for all sections (no charts, just HTML)
+  renderKpiOnly(m);
+  renderTable();
+}
+
+function renderKpiOnly(m){
+  // Pre-fill KPI cards for all sections so they're ready without charts
+  if(!document.getElementById('noise-kpis').innerHTML){
+    const noiseNegPct = Math.min(100, m.pctNegNoise);
+    document.getElementById('noise-kpis').innerHTML = `
+      <div class="kpi-card red"><div class="kpi-label">Menções de Barulho</div><div class="kpi-value">${m.nNoisyNeg}</div><div class="kpi-sub">${m.pctNoise}% das avaliações</div></div>
+      <div class="kpi-card red"><div class="kpi-label">% nas Negativas</div><div class="kpi-value">${noiseNegPct}%</div><div class="kpi-sub">das avaliações negativas</div></div>
+      <div class="kpi-card"><div class="kpi-label">Nota Média Geral</div><div class="kpi-value">${fmt(m.avgScore)}</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Nota com Barulho</div><div class="kpi-value">${fmt(m.avgNoisyNeg)}</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Impacto na Nota</div><div class="kpi-value">−${fmt(m.impactNoise)}</div><div class="kpi-sub">pontos</div></div>`;
+  }
+}
+</script>
+</body>
+</html>
